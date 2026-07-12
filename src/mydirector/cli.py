@@ -7,7 +7,7 @@ from pathlib import Path
 from mythings.engine import ClaudeCLIEngine, Engine, NoopEngine
 from mythings.ledger import Ledger
 
-from mydirector import emit, sources
+from mydirector import emit, escalate, sources
 from mydirector.emit import DefaultPolicy, render_markdown
 from mydirector.interview import ConsolePrompter, Prompter, conduct
 from mydirector.plan import SessionPlan, synthesize
@@ -88,6 +88,23 @@ def _run_show(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_escalate(args: argparse.Namespace) -> int:
+    ledger = Ledger(args.ledger)
+    dispatch_ledger = Ledger(args.dispatch_ledger)
+    blockers = escalate.unescalated_blockers(dispatch_ledger=dispatch_ledger, ledger=ledger)
+    if not blockers:
+        print("no new needs_human blocker(s)")
+        return 0
+
+    pushed = 0
+    for blocker in blockers:
+        if escalate.push_blocker(blocker, bot_ledger=args.bot_ledger):
+            escalate.record_escalated(ledger, blocker)
+            pushed += 1
+    print(f"{len(blockers)} new blocker(s), {pushed} pushed successfully")
+    return 0 if pushed == len(blockers) else 1
+
+
 def main(argv: list[str] | None = None, *, prompter: Prompter | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="mydirector",
@@ -123,9 +140,26 @@ def main(argv: list[str] | None = None, *, prompter: Prompter | None = None) -> 
     show.add_argument("--ledger", type=Path, default=Path(".mythings/ledger.jsonl"))
     show.add_argument("--json", action="store_true")
 
+    esc = sub.add_parser(
+        "escalate",
+        help="push any new needs_human blocker (fleet-dispatch#44) to Telegram",
+    )
+    esc.add_argument("--ledger", type=Path, default=Path(".mythings/ledger.jsonl"))
+    esc.add_argument(
+        "--dispatch-ledger", type=Path, required=True, help="fleet_dispatch's own dispatch ledger"
+    )
+    esc.add_argument(
+        "--bot-ledger",
+        type=Path,
+        required=True,
+        help="mytelegrambot's ledger (the push rendezvous)",
+    )
+
     args = parser.parse_args(argv)
     if args.cmd == "show":
         return _run_show(args)
+    if args.cmd == "escalate":
+        return _run_escalate(args)
     return _run_session(args, prompter or ConsolePrompter())
 
 
