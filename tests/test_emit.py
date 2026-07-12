@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from mythings.ledger import Ledger
+from mythings.testing import FakeGh
 
 from mydirector import emit
 from mydirector.emit import DefaultPolicy, upsert_section
@@ -12,28 +13,30 @@ from mydirector.interview import ScriptedPrompter
 from mydirector.plan import Objective, SessionPlan, Task
 
 
-class FakeGh:
-    # The gh process is the only mocked boundary.
-    def __init__(self, body: str = "existing body") -> None:
-        self.body = body
-        self.calls: list[list[str]] = []
-        self._n = 100
+def fake_gh(body: str = "existing body") -> FakeGh:
+    # Stateful wiring over the shared FakeGh: issue create hands out numbers,
+    # edit --body updates what view returns (kept on gh.body so tests can
+    # assert the final board text).
+    state = {"n": 100}
 
-    def __call__(self, argv: list[str]) -> str:
-        self.calls.append(argv)
-        if argv[:2] == ["issue", "create"]:
-            self._n += 1
-            return f"https://github.com/o/r/issues/{self._n}\n"
-        if argv[:2] == ["issue", "view"]:
-            return self.body
-        if argv[:2] == ["issue", "edit"]:
-            if "--body" in argv:
-                self.body = argv[argv.index("--body") + 1]
-            return ""
-        raise AssertionError(f"unexpected gh argv: {argv}")
+    def issue_create(argv: list[str]) -> str:
+        state["n"] += 1
+        return f"https://github.com/o/r/issues/{state['n']}\n"
 
-    def saw(self, *prefix: str) -> bool:
-        return any(c[: len(prefix)] == list(prefix) for c in self.calls)
+    def issue_edit(argv: list[str]) -> str:
+        if "--body" in argv:
+            gh.body = argv[argv.index("--body") + 1]
+        return ""
+
+    gh = FakeGh(
+        {
+            ("issue", "create"): issue_create,
+            ("issue", "view"): lambda argv: gh.body,
+            ("issue", "edit"): issue_edit,
+        }
+    )
+    gh.body = body
+    return gh
 
 
 def _plan(n_tasks: int = 2) -> SessionPlan:
@@ -57,7 +60,7 @@ def _plan(n_tasks: int = 2) -> SessionPlan:
 
 def test_dry_run_writes_ledger_and_artifact_but_no_gh(tmp_path: Path) -> None:
     ledger = Ledger(tmp_path / "ledger.jsonl")
-    gh = FakeGh()
+    gh = fake_gh()
     result = run_emit(
         _plan(),
         ledger=ledger,
@@ -78,7 +81,7 @@ def test_dry_run_writes_ledger_and_artifact_but_no_gh(tmp_path: Path) -> None:
 
 def test_execute_creates_one_issue_per_task_when_confirmed(tmp_path: Path) -> None:
     ledger = Ledger(tmp_path / "ledger.jsonl")
-    gh = FakeGh(body="## Board\n\nsome text\n")
+    gh = fake_gh(body="## Board\n\nsome text\n")
     result = run_emit(
         _plan(2),
         ledger=ledger,
@@ -99,7 +102,7 @@ def test_execute_creates_one_issue_per_task_when_confirmed(tmp_path: Path) -> No
 
 def test_execute_respects_declined_confirmation(tmp_path: Path) -> None:
     ledger = Ledger(tmp_path / "ledger.jsonl")
-    gh = FakeGh()
+    gh = fake_gh()
     result = run_emit(
         _plan(1),
         ledger=ledger,
@@ -118,7 +121,7 @@ def test_execute_respects_declined_confirmation(tmp_path: Path) -> None:
 def test_unattended_ask_blocks_creation(tmp_path: Path) -> None:
     # In CI, ASK degrades to DENY regardless of the prompter's answer.
     ledger = Ledger(tmp_path / "ledger.jsonl")
-    gh = FakeGh()
+    gh = fake_gh()
     result = run_emit(
         _plan(1),
         ledger=ledger,
@@ -148,7 +151,7 @@ def test_task_without_repo_is_skipped(tmp_path: Path) -> None:
         objective=Objective(statement="X", why="", horizon="next"),
         tasks=[Task(title="no repo", repo="", label="", acceptance="")],
     )
-    gh = FakeGh()
+    gh = fake_gh()
     result = run_emit(
         plan,
         ledger=Ledger(tmp_path / "l.jsonl"),
