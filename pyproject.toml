@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "my-director"
-version = "0.0.1"
+version = "1.0.0"
 description = "The fleet's human-in-the-loop director: an end-of-day session that decides the next session's one critical objective and decomposes it into task-issues."
 authors = [{ name = "Lorenzo Liuzzo", email = "lorenzoliuzzo@outlook.com" }]
 readme = "README.md"
