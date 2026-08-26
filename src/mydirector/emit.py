@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from mythings.github import GitHub, Runner, _gh
@@ -16,6 +17,24 @@ from mydirector.plan import SessionPlan, Task
 TOOL = "my-director"
 LEDGER_KIND = "session_plan"
 SECTION_HEADER = "## Next session — critical objective"
+
+# A resuming session/agent reads this as the current objective. Past this
+# many days it's more likely stale context (the world moved on) than a live
+# instruction -- surface that one exists without presenting it as current,
+# rather than silently dropping it (an operator revisiting after a break
+# still needs to know a plan was made) or silently rendering it as fresh (the
+# failure mode this replaces: a 27-day-old plan for an unrelated repo shown
+# as the top line of every session's resume brief).
+STALE_AFTER_DAYS = 7
+
+
+def plan_age_days(plan: SessionPlan, *, now: datetime | None = None) -> float:
+    generated = datetime.strptime(plan.generated_ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+    return ((now or datetime.now(UTC)) - generated).total_seconds() / 86400
+
+
+def is_stale(plan: SessionPlan, *, max_age_days: float = STALE_AFTER_DAYS) -> bool:
+    return plan_age_days(plan) > max_age_days
 
 
 class DefaultPolicy:
@@ -58,6 +77,21 @@ def render_markdown(plan: SessionPlan) -> str:
     via = "engine" if plan.engine_used else "degraded (no usable Engine reply)"
     lines += ["", f"_synthesis: {via} · generated {plan.generated_ts}_"]
     return "\n".join(line for line in lines if line is not None)
+
+
+def render_stale_notice(plan: SessionPlan) -> str:
+    age = int(plan_age_days(plan))
+    return "\n".join(
+        [
+            SECTION_HEADER,
+            "",
+            f"_A session plan exists but is {age} days old "
+            f"(generated {plan.generated_ts}) — stale, not shown as current._",
+            f"_Last objective was:_ {plan.objective.statement}",
+            "",
+            "_Run `mydirector session` to set a fresh one._",
+        ]
+    )
 
 
 def _issue_body(plan: SessionPlan, task: Task) -> str:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -71,6 +73,42 @@ def test_show_prints_latest_plan(tmp_path: Path, capsys: pytest.CaptureFixture[s
 
 def test_show_without_a_plan_exits_nonzero(tmp_path: Path) -> None:
     assert main(["show", "--ledger", str(tmp_path / "empty.jsonl")]) == 1
+
+
+def test_show_flags_a_stale_plan_instead_of_presenting_it_as_current(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ledger_path = tmp_path / "ledger.jsonl"
+    main(
+        ["session", "--ledger", str(ledger_path), "--artifact-dir", str(tmp_path / "art")],
+        prompter=ScriptedPrompter(answers=_director_answers()),
+    )
+    capsys.readouterr()  # drain
+
+    entries = Ledger(ledger_path).read(tool=emit.TOOL, kind=emit.LEDGER_KIND)
+    stale_ts = (datetime.now(UTC) - timedelta(days=27)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    backdated = dict(entries[0].data)
+    backdated["generated_ts"] = stale_ts
+    ledger_path.write_text(
+        json.dumps(
+            {
+                "tool": entries[0].tool,
+                "kind": entries[0].kind,
+                "outcome": entries[0].outcome,
+                "detail": entries[0].detail,
+                "data": backdated,
+                "ts": entries[0].ts,
+            }
+        )
+        + "\n"
+    )
+
+    rc = main(["show", "--ledger", str(ledger_path)])
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "stale" in out
+    assert "27 days old" in out
+    assert "Land the mastery seam" in out  # still names the last objective, for reference
 
 
 def test_build_engine_selects_backend() -> None:

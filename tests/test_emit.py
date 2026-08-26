@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from mythings.ledger import Ledger
 from mythings.testing import FakeGh
 
 from mydirector import emit
-from mydirector.emit import DefaultPolicy, upsert_section
+from mydirector.emit import (
+    DefaultPolicy,
+    is_stale,
+    plan_age_days,
+    render_stale_notice,
+    upsert_section,
+)
 from mydirector.emit import emit as run_emit
 from mydirector.interview import ScriptedPrompter
 from mydirector.plan import Objective, SessionPlan, Task
@@ -178,3 +185,35 @@ def test_artifact_json_round_trips(tmp_path: Path) -> None:
     data = json.loads((tmp_path / "art" / "session_plan.json").read_text())
     restored = SessionPlan.from_dict(data)
     assert restored.objective.statement == "Ship X"
+
+
+def _ts(days_ago: float) -> str:
+    when = datetime.now(UTC) - timedelta(days=days_ago)
+    return when.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def test_plan_age_days_measures_from_generated_ts() -> None:
+    plan = _plan(0)
+    plan.generated_ts = _ts(3)
+    assert 2.9 < plan_age_days(plan) < 3.1
+
+
+def test_is_stale_false_within_the_window() -> None:
+    plan = _plan(0)
+    plan.generated_ts = _ts(6.9)
+    assert not is_stale(plan)
+
+
+def test_is_stale_true_past_the_window() -> None:
+    plan = _plan(0)
+    plan.generated_ts = _ts(27)
+    assert is_stale(plan)
+
+
+def test_render_stale_notice_names_age_and_last_objective() -> None:
+    plan = _plan(0)
+    plan.generated_ts = _ts(27)
+    notice = render_stale_notice(plan)
+    assert "27 days old" in notice
+    assert "Ship X" in notice
+    assert "mydirector session" in notice
