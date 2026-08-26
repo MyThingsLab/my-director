@@ -8,7 +8,7 @@ from mythings.engine import ClaudeCLIEngine, Engine, NoopEngine
 from mythings.ledger import Ledger
 
 from mydirector import emit, escalate, sources
-from mydirector.emit import DefaultPolicy, render_markdown
+from mydirector.emit import DefaultPolicy, is_stale, render_markdown, render_stale_notice
 from mydirector.interview import ConsolePrompter, Prompter, conduct
 from mydirector.plan import SessionPlan, synthesize
 
@@ -84,7 +84,7 @@ def _run_show(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(plan.to_dict(), indent=2, sort_keys=True))
     else:
-        print(render_markdown(plan))
+        print(render_stale_notice(plan) if is_stale(plan) else render_markdown(plan))
     return 0
 
 
