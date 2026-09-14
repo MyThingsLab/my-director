@@ -5,11 +5,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-from mythings.engine import ClaudeCLIEngine, NoopEngine
 from mythings.ledger import Ledger
 
 from mydirector import emit
-from mydirector.cli import build_engine, main
+from mydirector.cli import main
 from mydirector.interview import ScriptedPrompter
 
 
@@ -109,11 +108,6 @@ def test_show_flags_a_stale_plan_instead_of_presenting_it_as_current(
     assert "stale" in out
     assert "27 days old" in out
     assert "Land the mastery seam" in out  # still names the last objective, for reference
-
-
-def test_build_engine_selects_backend() -> None:
-    assert isinstance(build_engine("noop"), NoopEngine)
-    assert isinstance(build_engine("claude-cli"), ClaudeCLIEngine)
 
 
 def test_escalate_pushes_a_new_needs_human_blocker(
