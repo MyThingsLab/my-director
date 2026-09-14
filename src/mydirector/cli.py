@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from mythings.engine import ClaudeCLIEngine, Engine, NoopEngine
+from mythings.engine import build_engine_from_args
 from mythings.ledger import Ledger
 
 from mydirector import emit, escalate, sources
@@ -13,12 +13,6 @@ from mydirector.interview import ConsolePrompter, Prompter, conduct
 from mydirector.plan import SessionPlan, synthesize
 
 _ENGINE_NAMES = ("noop", "claude-cli")
-
-
-def build_engine(name: str, *, model: str | None = None) -> Engine:
-    if name == "claude-cli":
-        return ClaudeCLIEngine(model=model)
-    return NoopEngine()
 
 
 def _open_counts(raw: list[str] | None) -> dict[str, int]:
@@ -44,7 +38,7 @@ def _run_session(args: argparse.Namespace, prompter: Prompter) -> int:
         print("no objective given — nothing to plan (aborted)")
         return 1
 
-    engine = build_engine(args.engine, model=args.engine_model)
+    engine = build_engine_from_args(args)
     plan = synthesize(answers, briefing.summary(), engine)
 
     print()
