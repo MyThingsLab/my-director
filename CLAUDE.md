@@ -48,6 +48,16 @@ covered here defers to `HARNESS.md`, then `my-things-core/docs/CONVENTIONS.md`.
   - The model proposes criteria; the **operator confirms or rewrites them**
     before the contract binds. A mission with no executable criterion is
     refused unless `--allow-unverifiable` is passed explicitly.
+  - `mission open --voice` conducts the interview aloud. `VoicePrompter` is a
+    third `Prompter` beside `ConsolePrompter`/`ScriptedPrompter`, so nothing in
+    the interview knows whether an answer was spoken or typed. **Push-to-talk
+    only** — no wake word, no hot mic. Every transcript is printed and editable
+    before use, because an STT slip in a `done_when` line silently changes what
+    the mission is graded against. Speech deps are the optional `[voice]` extra
+    and are imported lazily, so the package imports and tests without them;
+    availability is preflighted *before* the first question, and any failure —
+    missing package, absent mic, broken TTS — degrades to typing rather than
+    raising. CI has no GPU and no microphone and must never need either.
   - Reads other tools' state only via the on-disk `Ledger` + `gh` (MyPlanner's
     latest plan through the read-only ledger seam MyTodo uses) — **no package
     dependency on any other tool**; runtime dep is `my-things-core` only.

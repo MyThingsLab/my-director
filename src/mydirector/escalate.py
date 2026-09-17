@@ -92,10 +92,14 @@ def push_blocker(blocker: Blocker, *, bot_ledger: Path, timeout: float = 30.0) -
     argv = [
         str(binary),
         "escalate-blocker",
-        "--candidate", blocker.candidate,
-        "--detail", blocker.detail,
-        "--attempt", str(blocker.attempt),
-        "--ledger", str(bot_ledger),
+        "--candidate",
+        blocker.candidate,
+        "--detail",
+        blocker.detail,
+        "--attempt",
+        str(blocker.attempt),
+        "--ledger",
+        str(bot_ledger),
     ]
     try:
         proc = subprocess.run(argv, capture_output=True, text=True, timeout=timeout, check=False)

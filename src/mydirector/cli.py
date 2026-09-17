@@ -70,7 +70,22 @@ def _run_session(args: argparse.Namespace, prompter: Prompter) -> int:
     return 0
 
 
+def _voice_prompter(args: argparse.Namespace, fallback: Prompter) -> Prompter:
+    if not getattr(args, "voice", False):
+        return fallback
+    from mydirector.voice import build_prompter, unavailable
+
+    if reason := unavailable():
+        print(f"voice unavailable: {reason}")
+        print("falling back to the typed interview")
+        return fallback
+    return build_prompter(
+        model=args.voice_model, voice=args.voice_name, language=args.voice_language
+    )
+
+
 def _run_mission_open(args: argparse.Namespace, prompter: Prompter) -> int:
+    prompter = _voice_prompter(args, prompter)
     ledger = Ledger(args.ledger)
     if args.objective:
         contract = mission.MissionContract(
@@ -202,6 +217,14 @@ def main(argv: list[str] | None = None, *, prompter: Prompter | None = None) -> 
         action="store_true",
         help="open a mission no machine can grade (every criterion is prose)",
     )
+    opener.add_argument(
+        "--voice",
+        action="store_true",
+        help="conduct the interview aloud (push-to-talk; needs the [voice] extra)",
+    )
+    opener.add_argument("--voice-model", default="large-v3-turbo", help="faster-whisper model")
+    opener.add_argument("--voice-name", default="af_heart", help="Kokoro voice, e.g. im_nicola")
+    opener.add_argument("--voice-language", help="force a language code, e.g. it")
 
     closer = msub.add_parser("close", help="re-run the criteria and grade the mission")
     closer.add_argument("--ledger", type=Path, default=Path(".mythings/ledger.jsonl"))

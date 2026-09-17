@@ -117,17 +117,24 @@ def test_escalate_pushes_a_new_needs_human_blocker(
 
     dispatch_ledger = Ledger(tmp_path / "dispatch.jsonl")
     dispatch_ledger.record(
-        tool="fleet_dispatch", kind="dispatch", outcome="needs_human",
-        detail="my-guard#3: gave up", candidate="my-guard#3", attempt=3,
+        tool="fleet_dispatch",
+        kind="dispatch",
+        outcome="needs_human",
+        detail="my-guard#3: gave up",
+        candidate="my-guard#3",
+        attempt=3,
     )
     monkeypatch.setattr(escalate_module, "push_blocker", lambda *a, **k: True)
 
     rc = main(
         [
             "escalate",
-            "--ledger", str(tmp_path / "director.jsonl"),
-            "--dispatch-ledger", str(tmp_path / "dispatch.jsonl"),
-            "--bot-ledger", str(tmp_path / "bot.jsonl"),
+            "--ledger",
+            str(tmp_path / "director.jsonl"),
+            "--dispatch-ledger",
+            str(tmp_path / "dispatch.jsonl"),
+            "--bot-ledger",
+            str(tmp_path / "bot.jsonl"),
         ]
     )
 
@@ -143,9 +150,12 @@ def test_escalate_with_nothing_new_exits_zero(
     rc = main(
         [
             "escalate",
-            "--ledger", str(tmp_path / "director.jsonl"),
-            "--dispatch-ledger", str(tmp_path / "dispatch.jsonl"),
-            "--bot-ledger", str(tmp_path / "bot.jsonl"),
+            "--ledger",
+            str(tmp_path / "director.jsonl"),
+            "--dispatch-ledger",
+            str(tmp_path / "dispatch.jsonl"),
+            "--bot-ledger",
+            str(tmp_path / "bot.jsonl"),
         ]
     )
 
@@ -160,17 +170,24 @@ def test_escalate_exits_nonzero_when_a_push_fails(
 
     dispatch_ledger = Ledger(tmp_path / "dispatch.jsonl")
     dispatch_ledger.record(
-        tool="fleet_dispatch", kind="dispatch", outcome="needs_human",
-        detail="my-guard#3: gave up", candidate="my-guard#3", attempt=3,
+        tool="fleet_dispatch",
+        kind="dispatch",
+        outcome="needs_human",
+        detail="my-guard#3: gave up",
+        candidate="my-guard#3",
+        attempt=3,
     )
     monkeypatch.setattr(escalate_module, "push_blocker", lambda *a, **k: False)
 
     rc = main(
         [
             "escalate",
-            "--ledger", str(tmp_path / "director.jsonl"),
-            "--dispatch-ledger", str(tmp_path / "dispatch.jsonl"),
-            "--bot-ledger", str(tmp_path / "bot.jsonl"),
+            "--ledger",
+            str(tmp_path / "director.jsonl"),
+            "--dispatch-ledger",
+            str(tmp_path / "dispatch.jsonl"),
+            "--bot-ledger",
+            str(tmp_path / "bot.jsonl"),
         ]
     )
 
