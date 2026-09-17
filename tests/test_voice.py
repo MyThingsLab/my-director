@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+# stdlib `array`, deliberately not numpy: the speech deps are the optional
+# [voice] extra and CI installs only [dev], so a test that imports numpy is
+# testing the developer's machine. listen() only takes len() of the buffer,
+# so anything sized stands in for a recording.
+from array import array
+
 import pytest
 
 from mydirector.interview import ScriptedPrompter
@@ -154,8 +160,6 @@ def test_tts_ignores_empty_text() -> None:
 def test_empty_recording_is_never_sent_to_the_model() -> None:
     # A stray enter-enter must come back as silence, not as whatever the model
     # hallucinates from an empty buffer.
-    import numpy as np
-
     transcribed: list[object] = []
 
     class _Model:
@@ -165,7 +169,7 @@ def test_empty_recording_is_never_sent_to_the_model() -> None:
 
     ear = PushToTalkEar(echo=lambda *a: None, reader=lambda *a: "")
     ear._model = _Model()
-    ear._record = lambda: np.zeros(0, dtype="float32")
+    ear._record = lambda: array("f", [])
 
     assert ear.listen() == ""
     assert transcribed == []
@@ -200,8 +204,6 @@ def test_a_microphone_that_fails_costs_a_question_not_the_session() -> None:
 
 
 def test_recorded_audio_is_transcribed_and_joined() -> None:
-    import numpy as np
-
     class _Segment:
         def __init__(self, text: str) -> None:
             self.text = text
@@ -212,6 +214,6 @@ def test_recorded_audio_is_transcribed_and_joined() -> None:
 
     ear = PushToTalkEar(echo=lambda *a: None, reader=lambda *a: "")
     ear._model = _Model()
-    ear._record = lambda: np.ones(16_000, dtype="float32")
+    ear._record = lambda: array("f", [1.0]) * 16_000
 
     assert ear.listen() == "fix the heartbeat"
