@@ -33,8 +33,14 @@ jobs:
           cache: pip
       # my-things-core is a sibling v1 repo, not on PyPI — pinned per the release
       # contract (RELEASE.md), not floating on @main.
+      #
+      # This pin and the vendored HARNESS.md must move together. test_harness_drift
+      # compares HARNESS.md against the *installed* core, so re-vendoring from
+      # canonical without bumping this turns CI red: #16 vendored v1.7.0's harness
+      # while this still said v1.6.0, and nothing caught it because no CI had run
+      # on main since. Bump this in the same PR as any re-vendor.
       - name: Install my-things-core
-        run: pip install "my-things-core @ git+https://github.com/${{ github.repository_owner }}/my-things-core@v1.6.0"
+        run: pip install "my-things-core @ git+https://github.com/${{ github.repository_owner }}/my-things-core@v1.7.0"
       - name: Install
         run: pip install -e ".[dev]"
       - name: Ruff
