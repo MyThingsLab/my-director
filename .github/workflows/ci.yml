@@ -39,8 +39,12 @@ jobs:
       # canonical without bumping this turns CI red: #16 vendored v1.7.0's harness
       # while this still said v1.6.0, and nothing caught it because no CI had run
       # on main since. Bump this in the same PR as any re-vendor.
+      #
+      # v1.8.0 is the first tag containing mythings.contract, which mission.py
+      # imports. harness.md is byte-identical in v1.7.0 and v1.8.0, so this move
+      # does not disturb the drift test.
       - name: Install my-things-core
-        run: pip install "my-things-core @ git+https://github.com/${{ github.repository_owner }}/my-things-core@v1.7.0"
+        run: pip install "my-things-core @ git+https://github.com/${{ github.repository_owner }}/my-things-core@v1.8.0"
       - name: Install
         run: pip install -e ".[dev]"
       - name: Ruff
